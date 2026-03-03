@@ -16,6 +16,9 @@ dependencies = [
 [project.scripts]
 kn = "kn.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["kn*"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
