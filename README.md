@@ -18,9 +18,6 @@ Requires Python 3.12+ and the Mac Kindle app.
 git clone https://github.com/delebedev/kindle-notes.git
 cd kindle-notes
 uv pip install -e .
-
-# Install Playwright's Chromium (needed for store-bought books)
-uv run playwright install chromium
 ```
 
 Or run directly without installing:
@@ -28,6 +25,16 @@ Or run directly without installing:
 ```bash
 uv run --directory ~/src/kindle-notes kn sync
 ```
+
+### Playwright setup (required for store-bought books)
+
+Playwright needs a Chromium browser to scrape highlights from DRM-protected books. Install it after installing the package:
+
+```bash
+uv run playwright install chromium
+```
+
+This downloads a Chromium binary (~150 MB). Without this step, `kn sync` will still work for DRM-free/sideloaded books but will fail when scraping store purchases.
 
 ## Quick start
 
@@ -105,7 +112,7 @@ kn export --book "atomic"    # single book
 
 1. **Local annotations** — reads `ksdk_annotation_v1.db` from the Kindle app container for highlight positions
 2. **KFX extraction** — for DRM-free books, parses `.azw8` files via [kfxlib](https://github.com/kluyg/calibre-kfx-input) to extract the actual highlighted text
-3. **Notebook scraping** — for DRM books, uses Playwright to open `read.amazon.co.uk/notebook`, click each book, and scroll to load all highlights
+3. **Notebook scraping** — for DRM books, uses Playwright to open `read.amazon.com/notebook`, click each book, and scroll to load all highlights
 4. **Cookie auth** — reads `Cookies.binarycookies` from the Kindle app for Amazon authentication (no login needed)
 
 ## Configuration
@@ -113,12 +120,12 @@ kn export --book "atomic"    # single book
 Optional config file at `~/.config/kn/config.toml`:
 
 ```toml
-# Amazon domain — change for your region
+# Amazon domain — change for your region (default: amazon.com)
 # Options: amazon.com, amazon.co.uk, amazon.de, amazon.co.jp, etc.
-amazon_domain = "amazon.co.uk"
+amazon_domain = "amazon.com"
 ```
 
-Can also be set via environment variable: `KN_AMAZON_DOMAIN=amazon.com kn sync`
+Can also be set via environment variable: `KN_AMAZON_DOMAIN=amazon.co.uk kn sync`
 
 ## Data
 
@@ -127,4 +134,4 @@ Can also be set via environment variable: `KN_AMAZON_DOMAIN=amazon.com kn sync`
 
 ## License
 
-kfxlib is vendored from [calibre-kfx-input](https://github.com/kluyg/calibre-kfx-input) under GPL v3.
+GPL v3 — kfxlib is vendored from [calibre-kfx-input](https://github.com/kluyg/calibre-kfx-input) under GPL v3.

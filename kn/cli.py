@@ -11,7 +11,8 @@ from .db import DB, parse_authors
 @click.pass_context
 def main(ctx):
     ctx.ensure_object(dict)
-    ctx.obj["db"] = DB()
+    if "db" not in ctx.obj:
+        ctx.obj["db"] = DB()
 
 
 @main.command()
@@ -66,7 +67,10 @@ def show(ctx, book):
 @click.pass_context
 def search(ctx, query):
     """Full-text search across all highlights."""
-    results = ctx.obj["db"].search(query)
+    try:
+        results = ctx.obj["db"].search(query)
+    except ValueError as e:
+        raise click.ClickException(str(e))
     if not results:
         click.echo(f"No results for '{query}'")
         return

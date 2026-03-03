@@ -4,11 +4,12 @@ Clicks each book in the sidebar, then scrolls to trigger AJAX loading
 of all highlights (initial load shows ~97-147, scroll loads the rest).
 """
 
-import sys
+import hashlib
 import time
 from pathlib import Path
 
 import binarycookies
+import click
 from playwright.sync_api import sync_playwright
 
 from kn.config import load_config
@@ -70,7 +71,7 @@ def fetch_all_highlights(page, asin: str) -> list[dict]:
     try:
         page.wait_for_selector("#highlight", timeout=10000)
     except Exception:
-        print(f"    no highlights found on page", file=sys.stderr)
+        click.echo("    no highlights found on page", err=True)
         return []
 
     prev_count = 0
@@ -79,7 +80,7 @@ def fetch_all_highlights(page, asin: str) -> list[dict]:
         count = page.locator("#highlight").count()
         if count != prev_count:
             stable_rounds = 0
-            print(f"    loaded: {count} highlights", file=sys.stderr)
+            click.echo(f"    loaded: {count} highlights", err=True)
         else:
             stable_rounds += 1
         prev_count = count
@@ -89,8 +90,18 @@ def fetch_all_highlights(page, asin: str) -> list[dict]:
     highlights = []
     for el in page.query_selector_all("#highlight"):
         text = el.inner_text().strip()
-        if text:
-            highlights.append({"text": text, "color": "yellow"})
+        if not text:
+            continue
+        # Extract color from highlight span's id (e.g. "highlight" parent has color class)
+        color = "yellow"
+        parent = el.query_selector("span[id^='highlight-']")
+        if parent:
+            hl_id = parent.get_attribute("id") or ""
+            # Format: highlight-<asin>-<type>-<color>-<index>
+            parts = hl_id.split("-")
+            if len(parts) >= 4:
+                color = parts[3]
+        highlights.append({"text": text, "color": color})
     return highlights
 
 
@@ -106,9 +117,9 @@ def sync_notebook_books(
 
     cookies = load_amazon_cookies(amazon_domain)
     if not cookies:
-        print(
+        click.echo(
             "Warning: no Amazon cookies found — cannot scrape notebook",
-            file=sys.stderr,
+            err=True,
         )
         return
 
@@ -123,7 +134,7 @@ def sync_notebook_books(
             wait_until="networkidle",
         )
         books = fetch_notebook_books(page)
-        print(f"Found {len(books)} books in notebook", file=sys.stderr)
+        click.echo(f"Found {len(books)} books in notebook", err=True)
 
         if asin_filter:
             books = [b for b in books if b["asin"] == asin_filter]
@@ -134,7 +145,7 @@ def sync_notebook_books(
                 continue
 
             try:
-                print(f"  Scraping: {book['title'][:60]}...", file=sys.stderr)
+                click.echo(f"  Scraping: {book['title'][:60]}...", err=True)
                 highlights = fetch_all_highlights(page, asin)
 
                 db.upsert_book(
@@ -145,24 +156,26 @@ def sync_notebook_books(
                     source="notebook",
                 )
 
-                for i, h in enumerate(highlights):
+                for h in highlights:
+                    # Use text hash for stable dedup (index-based breaks on reorder)
+                    text_hash = int(hashlib.sha256(h["text"].encode()).hexdigest()[:8], 16)
                     db.upsert_highlight(
                         asin=asin,
                         text=h["text"],
                         color=h["color"],
-                        position_start=i,
-                        position_end=i,
+                        position_start=text_hash,
+                        position_end=text_hash,
                         created_at=int(time.time()),
                     )
 
-                print(
+                click.echo(
                     f"  {book['title'][:50]}: {len(highlights)} highlights",
-                    file=sys.stderr,
+                    err=True,
                 )
             except Exception as e:
-                print(
+                click.echo(
                     f"  [{asin}] notebook error: {e}",
-                    file=sys.stderr,
+                    err=True,
                 )
 
         browser.close()

@@ -6,16 +6,13 @@ import sys
 import time
 from pathlib import Path
 
-# kfxlib is vendored at repo root — add to path if not already importable
-try:
-    from kfxlib import yj_book
-    from kfxlib.utilities import KFXDRMError
-except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from kfxlib import yj_book
-    from kfxlib.utilities import KFXDRMError
+# kfxlib is vendored at repo root
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import click  # noqa: E402
 
-from kn.db import DB
+from kfxlib import yj_book  # noqa: E402
+from kfxlib.utilities import KFXDRMError  # noqa: E402
+from kn.db import DB  # noqa: E402
 
 KINDLE_CONTAINER = Path.home() / "Library/Containers/com.amazon.Lassen/Data"
 EBOOKS_DIR = KINDLE_CONTAINER / "Library/eBooks"
@@ -139,7 +136,7 @@ def sync_local_books(db: DB, asin_filter: str | None = None) -> list[str]:
         except KFXDRMError:
             continue
         except Exception as e:
-            print(f"[{asin}] local parse error: {e}", file=sys.stderr)
+            click.echo(f"[{asin}] local parse error: {e}", err=True)
             continue
 
         db.upsert_book(
@@ -164,9 +161,9 @@ def sync_local_books(db: DB, asin_filter: str | None = None) -> list[str]:
                 )
                 count += 1
             except Exception as e:
-                print(f"[{asin}] highlight error: {e}", file=sys.stderr)
+                click.echo(f"[{asin}] highlight error: {e}", err=True)
 
         synced.append(asin)
-        print(f"  {title[:50]}: {count} highlights", file=sys.stderr)
+        click.echo(f"  {title[:50]}: {count} highlights", err=True)
 
     return synced

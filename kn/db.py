@@ -93,7 +93,8 @@ class DB:
         created_at: int,
     ) -> None:
         self.conn.execute(
-            "INSERT INTO highlights (asin, text, color, position_start, position_end, created_at, synced_at) "
+            "INSERT INTO highlights "
+            "(asin, text, color, position_start, position_end, created_at, synced_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(asin, position_start, position_end) DO UPDATE SET "
             "text=excluded.text, color=excluded.color, synced_at=excluded.synced_at",
@@ -123,13 +124,16 @@ class DB:
         return [dict(r) for r in rows]
 
     def search(self, query: str) -> list[dict]:
-        rows = self.conn.execute(
-            "SELECT h.*, b.title, b.authors FROM highlights h "
-            "JOIN highlights_fts fts ON h.id = fts.rowid "
-            "JOIN books b ON h.asin = b.asin "
-            "WHERE highlights_fts MATCH ? ORDER BY rank",
-            (query,),
-        ).fetchall()
+        try:
+            rows = self.conn.execute(
+                "SELECT h.*, b.title, b.authors FROM highlights h "
+                "JOIN highlights_fts fts ON h.id = fts.rowid "
+                "JOIN books b ON h.asin = b.asin "
+                "WHERE highlights_fts MATCH ? ORDER BY rank",
+                (query,),
+            ).fetchall()
+        except sqlite3.OperationalError as e:
+            raise ValueError(f"Invalid search query: {e}") from e
         return [dict(r) for r in rows]
 
     def find_book(self, query: str) -> list[dict]:

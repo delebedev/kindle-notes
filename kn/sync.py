@@ -1,6 +1,6 @@
 """Sync orchestrator — local sources first, then notebook for remaining books."""
 
-import sys
+import click
 
 from .db import DB
 from .sources.local import sync_local_books
@@ -9,10 +9,10 @@ from .sources.notebook import sync_notebook_books
 
 def sync_all(db: DB, asin_filter: str | None = None) -> None:
     """Run full sync: local sources first, then notebook for remaining books."""
-    print("Syncing local (DRM-free) books...", file=sys.stderr)
+    click.echo("Syncing local (DRM-free) books...", err=True)
     local_asins = sync_local_books(db, asin_filter)
-    print(f"Local sync done: {len(local_asins)} books\n", file=sys.stderr)
+    click.echo(f"Local sync done: {len(local_asins)} books\n", err=True)
 
-    print("Syncing notebook (DRM) books via Playwright...", file=sys.stderr)
+    click.echo("Syncing notebook (DRM) books via Playwright...", err=True)
     sync_notebook_books(db, asin_filter, skip_asins=local_asins)
-    print("Notebook sync done.", file=sys.stderr)
+    click.echo("Notebook sync done.", err=True)

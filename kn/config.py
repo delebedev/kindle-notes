@@ -7,7 +7,7 @@ CONFIG_DIR = Path.home() / ".config" / "kn"
 CONFIG_PATH = CONFIG_DIR / "config.toml"
 
 DEFAULTS = {
-    "amazon_domain": "amazon.co.uk",
+    "amazon_domain": "amazon.com",
 }
 
 
