@@ -14,27 +14,22 @@ All highlights are stored in a local SQLite database with full-text search.
 Requires Python 3.12+ and the Mac Kindle app.
 
 ```bash
-# Clone and install
-git clone https://github.com/delebedev/kindle-notes.git
-cd kindle-notes
-uv pip install -e .
+uv tool install git+https://github.com/delebedev/kindle-notes.git
 ```
 
-Or run directly without installing:
+Then install Playwright's Chromium (needed for store-bought books):
 
 ```bash
-uv run --directory ~/src/kindle-notes kn sync
-```
-
-### Playwright setup (required for store-bought books)
-
-Playwright needs a Chromium browser to scrape highlights from DRM-protected books. Install it after installing the package:
-
-```bash
-uv run playwright install chromium
+playwright install chromium
 ```
 
 This downloads a Chromium binary (~150 MB). Without this step, `kn sync` will still work for DRM-free/sideloaded books but will fail when scraping store purchases.
+
+### Alternative: run without installing
+
+```bash
+uv run --from git+https://github.com/delebedev/kindle-notes.git kn sync
+```
 
 ## Quick start
 
