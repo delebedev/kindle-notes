@@ -11,16 +11,16 @@ from pathlib import Path
 import binarycookies
 from playwright.sync_api import sync_playwright
 
+from kn.config import load_config
 from kn.db import DB
 
-AMAZON_DOMAIN = "amazon.co.uk"
 COOKIES_PATH = (
     Path.home()
     / "Library/Containers/com.amazon.Lassen/Data/Library/Cookies/Cookies.binarycookies"
 )
 
 
-def load_amazon_cookies() -> list[dict]:
+def load_amazon_cookies(amazon_domain: str) -> list[dict]:
     """Load cookies from Kindle app in Playwright-compatible format."""
     if not COOKIES_PATH.exists():
         return []
@@ -32,7 +32,7 @@ def load_amazon_cookies() -> list[dict]:
             cookies.append({
                 "name": c.name,
                 "value": c.value,
-                "domain": f".{AMAZON_DOMAIN}",
+                "domain": f".{amazon_domain}",
                 "path": "/",
             })
     return cookies
@@ -70,6 +70,7 @@ def fetch_all_highlights(page, asin: str) -> list[dict]:
     try:
         page.wait_for_selector("#highlight", timeout=10000)
     except Exception:
+        print(f"    no highlights found on page", file=sys.stderr)
         return []
 
     prev_count = 0
@@ -99,9 +100,11 @@ def sync_notebook_books(
     skip_asins: list[str] | None = None,
 ) -> None:
     """Sync DRM books via Playwright notebook scraping."""
+    cfg = load_config()
+    amazon_domain = cfg["amazon_domain"]
     skip = set(skip_asins or [])
 
-    cookies = load_amazon_cookies()
+    cookies = load_amazon_cookies(amazon_domain)
     if not cookies:
         print(
             "Warning: no Amazon cookies found — cannot scrape notebook",
@@ -115,15 +118,13 @@ def sync_notebook_books(
         context.add_cookies(cookies)
         page = context.new_page()
 
-        # Navigate to notebook and get book list
         page.goto(
-            f"https://read.{AMAZON_DOMAIN}/notebook",
+            f"https://read.{amazon_domain}/notebook",
             wait_until="networkidle",
         )
         books = fetch_notebook_books(page)
         print(f"Found {len(books)} books in notebook", file=sys.stderr)
 
-        # Filter to requested ASIN if specified
         if asin_filter:
             books = [b for b in books if b["asin"] == asin_filter]
 

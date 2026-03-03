@@ -4,7 +4,7 @@ import json
 
 import click
 
-from .db import DB
+from .db import DB, parse_authors
 
 
 @click.group()
@@ -30,7 +30,7 @@ def list_books(ctx):
     """List all books with highlight counts."""
     books = ctx.obj["db"].list_books()
     for b in books:
-        authors = json.loads(b["authors"]) if b["authors"] else []
+        authors = parse_authors(b["authors"])
         author_str = f" by {', '.join(authors)}" if authors else ""
         click.echo(f"  {b['title']}{author_str}")
         click.echo(f"    {b['asin']} | {b['content_type']} | {b['highlight_count']} highlights")
@@ -43,17 +43,16 @@ def show(ctx, book):
     """Show highlights for a book (fuzzy title match or ASIN)."""
     matches = ctx.obj["db"].find_book(book)
     if not matches:
-        click.echo(f"No book matching '{book}'", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(f"No book matching '{book}'")
     if len(matches) > 1:
-        click.echo(f"Ambiguous match for '{book}':")
+        lines = [f"Ambiguous match for '{book}':"]
         for m in matches:
-            click.echo(f"  {m['asin']}: {m['title']}")
-        raise SystemExit(1)
+            lines.append(f"  {m['asin']}: {m['title']}")
+        raise click.ClickException("\n".join(lines))
     b = matches[0]
     highlights = ctx.obj["db"].get_highlights(b["asin"])
     click.echo(f"{b['title']}")
-    authors = json.loads(b["authors"]) if b["authors"] else []
+    authors = parse_authors(b["authors"])
     if authors:
         click.echo(f"by {', '.join(authors)}")
     click.echo(f"{len(highlights)} highlights\n")
@@ -87,8 +86,7 @@ def export(ctx, as_json, book):
     if book:
         matches = db.find_book(book)
         if not matches:
-            click.echo(f"No book matching '{book}'", err=True)
-            raise SystemExit(1)
+            raise click.ClickException(f"No book matching '{book}'")
         books = matches[:1]
     else:
         books = db.list_books()
@@ -100,14 +98,14 @@ def export(ctx, as_json, book):
             output.append({
                 "asin": b["asin"],
                 "title": b["title"],
-                "authors": json.loads(b["authors"]) if b["authors"] else [],
+                "authors": parse_authors(b["authors"]),
                 "highlights": [{"text": h["text"], "color": h["color"]} for h in highlights],
             })
         click.echo(json.dumps(output, indent=2, ensure_ascii=False))
     else:
         for b in books:
             highlights = db.get_highlights(b["asin"])
-            authors = json.loads(b["authors"]) if b["authors"] else []
+            authors = parse_authors(b["authors"])
             click.echo(f"# {b['title']}")
             if authors:
                 click.echo(f"*{', '.join(authors)}*\n")

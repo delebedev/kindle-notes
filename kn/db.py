@@ -44,6 +44,13 @@ END;
 """
 
 
+def parse_authors(raw: str | None) -> list[str]:
+    """Parse JSON-encoded authors string from DB."""
+    if not raw:
+        return []
+    return json.loads(raw)
+
+
 class DB:
     def __init__(self, db_path: Path = DEFAULT_DB_PATH):
         db_path.parent.mkdir(parents=True, exist_ok=True)

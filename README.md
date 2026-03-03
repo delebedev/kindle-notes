@@ -108,9 +108,21 @@ kn export --book "atomic"    # single book
 3. **Notebook scraping** — for DRM books, uses Playwright to open `read.amazon.co.uk/notebook`, click each book, and scroll to load all highlights
 4. **Cookie auth** — reads `Cookies.binarycookies` from the Kindle app for Amazon authentication (no login needed)
 
+## Configuration
+
+Optional config file at `~/.config/kn/config.toml`:
+
+```toml
+# Amazon domain — change for your region
+# Options: amazon.com, amazon.co.uk, amazon.de, amazon.co.jp, etc.
+amazon_domain = "amazon.co.uk"
+```
+
+Can also be set via environment variable: `KN_AMAZON_DOMAIN=amazon.com kn sync`
+
 ## Data
 
-- Database: `~/.config/kn/highlights.db`
+- Config & database: `~/.config/kn/`
 - Kindle app data: `~/Library/Containers/com.amazon.Lassen/Data/`
 
 ## License

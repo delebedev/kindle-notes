@@ -6,9 +6,14 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from kfxlib import yj_book
-from kfxlib.utilities import KFXDRMError
+# kfxlib is vendored at repo root — add to path if not already importable
+try:
+    from kfxlib import yj_book
+    from kfxlib.utilities import KFXDRMError
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from kfxlib import yj_book
+    from kfxlib.utilities import KFXDRMError
 
 from kn.db import DB
 
@@ -62,6 +67,7 @@ def load_annotations(
             "start": ann["start_position"]["shortPosition"],
             "end": ann["end_position"]["shortPosition"],
             "color": meta.get("mchl_color", "yellow"),
+            "last_modified": ann.get("last_modified", 0),
         }
         by_asin.setdefault(asin, []).append(entry)
 
@@ -154,7 +160,7 @@ def sync_local_books(db: DB, asin_filter: str | None = None) -> list[str]:
                     color=ann["color"],
                     position_start=ann["start"],
                     position_end=ann["end"],
-                    created_at=int(time.time()),
+                    created_at=ann.get("last_modified", int(time.time())),
                 )
                 count += 1
             except Exception as e:
