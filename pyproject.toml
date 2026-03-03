@@ -1,0 +1,13 @@
+[project]
+name = "kindle-notes"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "binary-cookies-parser>=2.1.2",
+    "lxml>=6.0.2",
+    "pillow>=12.1.1",
+    "pypdf>=6.7.5",
+]
