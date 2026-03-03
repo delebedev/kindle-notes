@@ -1,12 +1,11 @@
 """Playwright-based notebook source — sync DRM books via browser scraping.
 
-Uses contentLimitState token pagination to fetch all highlights
-(the notebook page returns ~97 highlights per page).
+Clicks each book in the sidebar, then scrolls to trigger AJAX loading
+of all highlights (initial load shows ~97-147, scroll loads the rest).
 """
 
 import sys
 import time
-import urllib.parse
 from pathlib import Path
 
 import binarycookies
@@ -56,52 +55,42 @@ def fetch_notebook_books(page) -> list[dict]:
 
 
 def fetch_all_highlights(page, asin: str) -> list[dict]:
-    """Fetch all highlights for a book using contentLimitState pagination.
+    """Fetch all highlights by clicking book in sidebar then scrolling.
 
-    The notebook page returns ~97 highlights per page. A hidden input
-    `.kp-notebook-content-limit-state` contains the token for the next page.
-    We navigate page-by-page until no more highlights appear.
+    The notebook page loads ~97-147 highlights on click, then lazy-loads
+    the rest via AJAX on scroll. We click the book, then scroll until
+    the highlight count stabilizes.
     """
-    all_highlights: list[dict] = []
-    content_limit = ""
-    page_num = 0
+    book_el = page.locator(f"#{asin}")
+    if book_el.count() == 0:
+        return []
+    book_el.click()
+    page.wait_for_timeout(3000)
 
-    while True:
-        page_num += 1
-        url = (
-            f"https://read.{AMAZON_DOMAIN}/notebook"
-            f"?asin={asin}"
-            f"&contentLimitState={urllib.parse.quote(content_limit)}"
-        )
-        page.goto(url, wait_until="networkidle")
+    try:
+        page.wait_for_selector("#highlight", timeout=10000)
+    except Exception:
+        return []
 
-        try:
-            page.wait_for_selector("#highlight", timeout=10000)
-        except Exception:
-            break
+    prev_count = 0
+    stable_rounds = 0
+    while stable_rounds < 3:
+        count = page.locator("#highlight").count()
+        if count != prev_count:
+            stable_rounds = 0
+            print(f"    loaded: {count} highlights", file=sys.stderr)
+        else:
+            stable_rounds += 1
+        prev_count = count
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(2000)
 
-        page_highlights = []
-        for el in page.query_selector_all("#highlight"):
-            text = el.inner_text().strip()
-            if text:
-                page_highlights.append({"text": text, "color": "yellow"})
-        all_highlights.extend(page_highlights)
-        print(
-            f"    page {page_num}: {len(page_highlights)} highlights "
-            f"(total: {len(all_highlights)})",
-            file=sys.stderr,
-        )
-
-        # Get pagination token for next page
-        token_el = page.locator(".kp-notebook-content-limit-state")
-        if token_el.count() == 0:
-            break
-        new_token = token_el.first.get_attribute("value") or ""
-        if not new_token or new_token == content_limit:
-            break
-        content_limit = new_token
-
-    return all_highlights
+    highlights = []
+    for el in page.query_selector_all("#highlight"):
+        text = el.inner_text().strip()
+        if text:
+            highlights.append({"text": text, "color": "yellow"})
+    return highlights
 
 
 def sync_notebook_books(
@@ -144,6 +133,7 @@ def sync_notebook_books(
                 continue
 
             try:
+                print(f"  Scraping: {book['title'][:60]}...", file=sys.stderr)
                 highlights = fetch_all_highlights(page, asin)
 
                 db.upsert_book(
