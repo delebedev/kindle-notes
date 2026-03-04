@@ -42,6 +42,32 @@ def test_show_book(tmp_path):
     assert "compound interest" in result.output
 
 
+def test_show_limit(tmp_path):
+    db = DB(tmp_path / "test.db")
+    _seed_db(db)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["show", "atomic", "--limit", "1"], obj={"db": db})
+    assert result.exit_code == 0
+    assert "1 of 2 highlights" in result.output
+    assert "small changes" in result.output
+    assert "compound interest" not in result.output
+
+
+def test_show_offset(tmp_path):
+    db = DB(tmp_path / "test.db")
+    _seed_db(db)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main, ["show", "atomic", "--limit", "1", "--offset", "1"], obj={"db": db},
+    )
+    assert result.exit_code == 0
+    assert "1 of 2 highlights" in result.output
+    assert "compound interest" in result.output
+    assert "small changes" not in result.output
+
+
 def test_show_no_match(tmp_path):
     db = DB(tmp_path / "test.db")
     _seed_db(db)

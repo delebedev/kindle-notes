@@ -39,8 +39,10 @@ def list_books(ctx):
 
 @main.command()
 @click.argument("book")
+@click.option("--limit", default=None, type=int, help="Max highlights to show")
+@click.option("--offset", default=0, type=int, help="Skip first N highlights")
 @click.pass_context
-def show(ctx, book):
+def show(ctx, book, limit, offset):
     """Show highlights for a book (fuzzy title match or ASIN)."""
     matches = ctx.obj["db"].find_book(book)
     if not matches:
@@ -52,11 +54,16 @@ def show(ctx, book):
         raise click.ClickException("\n".join(lines))
     b = matches[0]
     highlights = ctx.obj["db"].get_highlights(b["asin"])
+    total = len(highlights)
+    highlights = highlights[offset:]
+    if limit is not None:
+        highlights = highlights[:limit]
     click.echo(f"{b['title']}")
     authors = parse_authors(b["authors"])
     if authors:
         click.echo(f"by {', '.join(authors)}")
-    click.echo(f"{len(highlights)} highlights\n")
+    shown = len(highlights)
+    click.echo(f"{shown} of {total} highlights\n")
     for h in highlights:
         click.echo(f"  {h['text']}")
         click.echo(f"  -- [{h['color']}]\n")
