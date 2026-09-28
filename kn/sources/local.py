@@ -20,11 +20,22 @@ KSDK_DIR = KINDLE_CONTAINER / "Library/KSDK"
 
 
 def find_annotation_db() -> Path:
-    """Locate the Kindle annotation SQLite DB."""
+    """Locate the Kindle annotation SQLite DB.
+
+    Prefer a signed-in Amazon account over the anonymous KSDK database.
+    """
+    # Kindle may keep an empty anonymous DB alongside the signed-in account DB.
+    for p in sorted(KSDK_DIR.glob("amzn1.account.*")):
+        db = p / "ksdk_annotation_v1.db"
+        if db.exists():
+            return db
+
+    # Fallback for installations without a signed-in account directory.
     for p in KSDK_DIR.iterdir():
         db = p / "ksdk_annotation_v1.db"
         if db.exists():
             return db
+
     raise FileNotFoundError(f"No annotation DB found in {KSDK_DIR}")
 
 
